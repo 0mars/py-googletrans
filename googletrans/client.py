@@ -13,7 +13,7 @@ from googletrans.compat import PY3
 from googletrans.gtoken import TokenAcquirer
 from googletrans.constants import DEFAULT_USER_AGENT, LANGCODES, LANGUAGES, SPECIAL_CASES
 from googletrans.models import Translated, Detected
-
+from requests.exceptions import HTTPError
 
 EXCLUDES = ('en', 'ca', 'fr')
 
@@ -142,6 +142,7 @@ class Translator(object):
             The quick brown fox  ->  빠른 갈색 여우
             jumps over  ->  이상 점프
             the lazy dog  ->  게으른 개
+        Raises requests.exceptions.HTTPError
         """
         dest = dest.lower().split('_', 1)[0]
         src = src.lower().split('_', 1)[0]
@@ -165,8 +166,11 @@ class Translator(object):
         if isinstance(text, list):
             result = []
             for item in text:
-                translated = self.translate(item, dest=dest, src=src, **kwargs)
-                result.append(translated)
+                try:
+                    translated = self.translate(item, dest=dest, src=src, **kwargs)
+                    result.append(translated)
+                except HTTPError as e:
+                    result.append("HTTPError"+e.response.status_code)   # For ease of diagnosis
             return result
 
         origin = text
@@ -243,8 +247,11 @@ class Translator(object):
         if isinstance(text, list):
             result = []
             for item in text:
-                lang = self.detect(item)
-                result.append(lang)
+                try:
+                    lang = self.detect(item)
+                    result.append(lang)
+                except HTTPError as e:
+                    result.append("HTTPError" + e.request.status_code)  # For ease of diagnosis
             return result
 
         data = self._translate(text, 'en', 'auto', kwargs)
